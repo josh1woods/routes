@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Manifest</title>
+    <style>
+        /* --- COPYING YOUR EXACT DARK MODE CSS --- */
+        :root {
+            --primary: #ffffff;
+            --bg-body: #171717;
+            --bg-card: #36454f;
+            --bg-card-alt: #708090;
+            --bg-badge: #708090;
+            --text-main: #ffffff;
+            --text-muted: #ffffff;
+            --accent-bus-bg: rgba(255, 255, 255, 0.2);
+            --text-bus: #ffffff;
+            --border-color: #ffffff;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 2rem;
+        }
+
+        header {
+            max-width: 600px; /* Limited width since we are showing 1 card */
+            margin: 0 auto 2rem auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-main); letter-spacing: -0.025em; }
+
+        .date-badge {
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* Single column for focus */
+            max-width: 600px; /* Center the single card */
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-card-alt);
+        }
+
+        .coach-info h2 { font-size: 1.25rem; font-weight: 600; color: var(--text-main); }
+        .coach-title { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.25rem; display: block; }
+
+        .bus-badge {
+            background-color: var(--accent-bus-bg);
+            color: var(--text-bus);
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border: 1px solid rgba(0, 0, 0, 0.3);
+        }
+
+        .card-body { padding: 0; flex-grow: 1; }
+        .stop-list { list-style: none; }
+        
+        .stop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .stop-item:last-child { border-bottom: none; }
+
+        .school-name { font-weight: 500; display: flex; align-items: center; gap: 0.5rem; color: #ffffff; }
+        .school-name::before {
+            content: ''; display: block; width: 8px; height: 8px; border-radius: 50%;
+            background-color: var(--primary); box-shadow: 0 0 8px var(--primary);
+        }
+
+        .kid-count {
+            background-color: var(--bg-badge); padding: 0.25rem 0.6rem;
+            border-radius: 4px; font-size: 0.85rem; font-weight: 600; color: var(--text-main);
+        }
+
+        .card-footer {
+            padding: 1rem 1.25rem;
+            background-color: var(--bg-card-alt);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .total-label { color: var(--text-muted); }
+        .total-value { font-weight: 700; color: var(--primary); }
+        
+        /* Error message styling */
+        .error-msg { text-align: center; color: #f87171; margin-top: 2rem; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Daily Manifest</h1>
+        <div class="date-badge" id="currentDate">Loading...</div>
+    </header>
+
+    <main class="dashboard-grid" id="app">
+        </main>
+
+    <script>
+        // 1. Get the URL Parameters
+        const params = new URLSearchParams(window.location.search);
+
+        // 2. Set the current date
+        const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', dateOptions);
+
+        // 3. Extract specific Data
+        // URL Example: domain.com?coach=Dave&bus=99&schools=SchoolA,SchoolB&kids=10,5
+        const coach = params.get('coach');
+        const bus = params.get('bus');
+        
+        // We expect schools and kids to be comma-separated lists
+        // "Lincoln,Washington,North High"
+        const schoolsRaw = params.get('schools'); 
+        const kidsRaw = params.get('kids');
+
+        const appContainer = document.getElementById('app');
+
+        if (!coach || !bus || !schoolsRaw || !kidsRaw) {
+            appContainer.innerHTML = `<h3 class="error-msg">Waiting for route data...<br><span style="font-size:0.8em; color:#fff;">(URL parameters missing)</span></h3>`;
+        } else {
+            
+            // Turn the comma strings into Arrays
+            // usage of "|| []" ensures it doesn't crash if empty
+            const schoolsArray = schoolsRaw.split(',');
+            const kidsArray = kidsRaw.split(',');
+
+            // Generate the List Items HTML
+            let listHtml = '';
+            let totalKids = 0;
+
+            for (let i = 0; i < schoolsArray.length; i++) {
+                // Get count, default to 0 if missing
+                let count = parseInt(kidsArray[i]) || 0; 
+                let schoolName = schoolsArray[i].trim();
+                
+                totalKids += count;
+
+                listHtml += `
+                    <li class="stop-item">
+                        <span class="school-name">${schoolName}</span>
+                        <span class="kid-count">${count} Students</span>
+                    </li>
+                `;
+            }
+
+            // Build the Final Card HTML
+            const cardHtml = `
+                <article class="card">
+                    <div class="card-header">
+                        <div class="coach-info">
+                            <span class="coach-title">Coach</span>
+                            <h2>${coach}</h2>
+                        </div>
+                        <div class="bus-badge">Bus #${bus}</div>
+                    </div>
+                    <div class="card-body">
+                        <ul class="stop-list">
+                            ${listHtml}
+                        </ul>
+                    </div>
+                    <div class="card-footer">
+                        <span class="total-label">Total Capacity Used</span>
+                        <span class="total-value">${totalKids} Students</span>
+                    </div>
+                </article>
+            `;
+
+            // Inject into page
+            appContainer.innerHTML = cardHtml;
+        }
+    </script>
+</body>
+</html>
