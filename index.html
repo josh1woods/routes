@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Route Manifest</title>
+    <title>Transport Route Dashboard - Multi-View</title>
     <style>
-        /* --- COPYING YOUR EXACT DARK MODE CSS --- */
+        /* --- 1. Dark Mode Variables (UNCHANGED) --- */
         :root {
             --primary: #ffffff;
             --bg-body: #171717;
@@ -31,7 +31,7 @@
         }
 
         header {
-            max-width: 600px; /* Limited width since we are showing 1 card */
+            max-width: 1200px;
             margin: 0 auto 2rem auto;
             display: flex;
             justify-content: space-between;
@@ -50,10 +50,12 @@
             border: 1px solid var(--border-color);
         }
 
+        /* Grid supports multiple cards automatically */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr; /* Single column for focus */
-            max-width: 600px; /* Center the single card */
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.5rem;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -124,15 +126,13 @@
 
         .total-label { color: var(--text-muted); }
         .total-value { font-weight: 700; color: var(--primary); }
-        
-        /* Error message styling */
-        .error-msg { text-align: center; color: #f87171; margin-top: 2rem; }
+        .error-msg { text-align: center; color: #fca5a5; margin-top: 2rem; grid-column: 1 / -1; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Daily Manifest</h1>
+        <h1>Route Manifests</h1>
         <div class="date-badge" id="currentDate">Loading...</div>
     </header>
 
@@ -140,77 +140,93 @@
         </main>
 
     <script>
-        // 1. Get the URL Parameters
-        const params = new URLSearchParams(window.location.search);
-
-        // 2. Set the current date
+        // Set Date
         const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
         document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', dateOptions);
 
-        // 3. Extract specific Data
-        // URL Example: domain.com?coach=Dave&bus=99&schools=SchoolA,SchoolB&kids=10,5
-        const coach = params.get('coach');
-        const bus = params.get('bus');
+        // Get URL Parameters
+        const params = new URLSearchParams(window.location.search);
+
+        /* DATA STRUCTURE EXPECTATION:
+           ?coaches=Sarah|Dave
+           &buses=104|22B
+           &schools=Lincoln,Washington|Oak Creek,River Valley
+           &kids=12,8|22,18
+        */
         
-        // We expect schools and kids to be comma-separated lists
-        // "Lincoln,Washington,North High"
-        const schoolsRaw = params.get('schools'); 
-        const kidsRaw = params.get('kids');
+        const rawCoaches = params.get('coaches');
+        const rawBuses = params.get('buses');
+        const rawSchools = params.get('schools');
+        const rawKids = params.get('kids');
 
         const appContainer = document.getElementById('app');
 
-        if (!coach || !bus || !schoolsRaw || !kidsRaw) {
-            appContainer.innerHTML = `<h3 class="error-msg">Waiting for route data...<br><span style="font-size:0.8em; color:#fff;">(URL parameters missing)</span></h3>`;
+        if (!rawCoaches || !rawBuses || !rawSchools || !rawKids) {
+            appContainer.innerHTML = `<h3 class="error-msg">Waiting for data...<br>Ensure URL has coaches, buses, schools, and kids parameters.</h3>`;
         } else {
             
-            // Turn the comma strings into Arrays
-            // usage of "|| []" ensures it doesn't crash if empty
-            const schoolsArray = schoolsRaw.split(',');
-            const kidsArray = kidsRaw.split(',');
+            // 1. Split the Main Lists by PIPE '|'
+            const coachesArr = rawCoaches.split('|');
+            const busesArr = rawBuses.split('|');
+            const schoolsArr = rawSchools.split('|');
+            const kidsArr = rawKids.split('|');
 
-            // Generate the List Items HTML
-            let listHtml = '';
-            let totalKids = 0;
+            let allCardsHtml = '';
 
-            for (let i = 0; i < schoolsArray.length; i++) {
-                // Get count, default to 0 if missing
-                let count = parseInt(kidsArray[i]) || 0; 
-                let schoolName = schoolsArray[i].trim();
+            // 2. Loop through each coach
+            for (let i = 0; i < coachesArr.length; i++) {
                 
-                totalKids += count;
+                const coachName = coachesArr[i];
+                const busNum = busesArr[i] || 'N/A';
+                
+                // 3. Get the strings for THIS specific coach and split by COMMA ','
+                const specificSchools = (schoolsArr[i] || '').split(',');
+                const specificKids = (kidsArr[i] || '').split(',');
 
-                listHtml += `
-                    <li class="stop-item">
-                        <span class="school-name">${schoolName}</span>
-                        <span class="kid-count">${count} Students</span>
-                    </li>
+                let listHtml = '';
+                let totalKids = 0;
+
+                // 4. Loop through stops for this coach
+                for (let j = 0; j < specificSchools.length; j++) {
+                    let sName = specificSchools[j].trim();
+                    if(sName === "") continue; // skip empty entries
+                    
+                    let count = parseInt(specificKids[j]) || 0;
+                    totalKids += count;
+
+                    listHtml += `
+                        <li class="stop-item">
+                            <span class="school-name">${sName}</span>
+                            <span class="kid-count">${count} Students</span>
+                        </li>
+                    `;
+                }
+
+                // 5. Build the Card
+                allCardsHtml += `
+                    <article class="card">
+                        <div class="card-header">
+                            <div class="coach-info">
+                                <span class="coach-title">Coach</span>
+                                <h2>${coachName}</h2>
+                            </div>
+                            <div class="bus-badge">Bus #${busNum}</div>
+                        </div>
+                        <div class="card-body">
+                            <ul class="stop-list">
+                                ${listHtml}
+                            </ul>
+                        </div>
+                        <div class="card-footer">
+                            <span class="total-label">Total Capacity Used</span>
+                            <span class="total-value">${totalKids} Students</span>
+                        </div>
+                    </article>
                 `;
             }
 
-            // Build the Final Card HTML
-            const cardHtml = `
-                <article class="card">
-                    <div class="card-header">
-                        <div class="coach-info">
-                            <span class="coach-title">Coach</span>
-                            <h2>${coach}</h2>
-                        </div>
-                        <div class="bus-badge">Bus #${bus}</div>
-                    </div>
-                    <div class="card-body">
-                        <ul class="stop-list">
-                            ${listHtml}
-                        </ul>
-                    </div>
-                    <div class="card-footer">
-                        <span class="total-label">Total Capacity Used</span>
-                        <span class="total-value">${totalKids} Students</span>
-                    </div>
-                </article>
-            `;
-
-            // Inject into page
-            appContainer.innerHTML = cardHtml;
+            // Inject all cards at once
+            appContainer.innerHTML = allCardsHtml;
         }
     </script>
 </body>
