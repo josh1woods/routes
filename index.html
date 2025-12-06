@@ -162,7 +162,7 @@
         const appContainer = document.getElementById('app');
 
         if (!rawCoaches || !rawBuses || !rawSchools || !rawKids) {
-            appContainer.innerHTML = `<h3 class="error-msg">Waiting for data...<br>Ensure URL has coaches, buses, schools, and kids parameters.</h3>`;
+            appContainer.innerHTML = `<h3 class="error-msg">Waiting for data...<br>Ensure input has coaches, buses, schools, and kid count parameters.</h3>`;
         } else {
             
             // 1. Split the Main Lists by PIPE '|'
